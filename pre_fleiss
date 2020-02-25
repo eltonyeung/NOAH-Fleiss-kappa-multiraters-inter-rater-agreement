@@ -1,0 +1,543 @@
+%COMPARE Human Ratings of Activities
+
+%INPUTS: 
+%   User selects 3 x Classification*.csv files
+
+%REQUIREMENTS
+%   1. LUTS mat in current folder
+%   2. fleiss.m function in current folder
+
+% select rater1 TS first
+%%select rater 2 MS second
+
+%%
+% clear variables
+clear
+clc
+
+% name of subject
+name ='LNPT04R1'
+%% file loading
+F1=pwd;
+
+[fn1, pn1, fi1] = uigetfile('*.csv', 'Select No.1 Classification File'); %rater1
+[fn2, pn2, fi2] = uigetfile('*.csv', 'Select No.2 Classification File'); %rater2
+[fn3, pn3, fi3] = uigetfile('*.csv', 'Select No.3 Classification File'); %rater3
+%%
+%TS
+cd(pn1)
+fprintf('CHOSEN FOLDER No.1: %s\n', pn1)
+fprintf('\tReading: ');
+ClassData1 = readtable(fn1);
+fprintf('%s [%d x %d] & ', fn1);
+
+%MS
+cd(pn2)
+fprintf('\nCHOSEN FOLDER No.2: %s\n', pn2)
+fprintf('\tReading: ');
+ClassData2 = readtable(fn2);
+fprintf('%s [%d x %d]\n ', fn2);
+
+%MS
+cd(pn3)
+fprintf('\nCHOSEN FOLDER No.3: %s\n', pn3)
+fprintf('\tReading: ');
+ClassData3 = readtable(fn3);
+fprintf('%s [%d x %d]\n ', fn3);
+
+cd(F1)
+
+%% data preparation
+%rater1
+ClassData1 =table2array(ClassData1);
+%rater2
+ClassData2 =table2array(ClassData2);
+%rater3
+ClassData3 =table2array(ClassData3);
+
+%Convert Rater 1 annotation seconds into DeciSeconds (this is to preserve those classifications that start and end within same second)
+ClassDataDS1=[ClassData1(:,[2 3])*10 ClassData1(:,1) zeros(length(ClassData1),1)];
+
+%Convert Rater 2 annotation seconds into DeciSeconds (this is to preserve those classifications that start and end within same second)
+ClassDataDS2=[ClassData2(:,[2 3])*10 ClassData2(:,1) zeros(length(ClassData2),1)];
+
+%Convert Rater 3 annotation seconds into DeciSeconds (this is to preserve those classifications that start and end within same second)
+ClassDataDS3=[ClassData3(:,[2 3])*10 ClassData3(:,1) zeros(length(ClassData3),1)];
+
+clear ClassData1 ClassData2 ClassData3 pn1 pn2 pn3 fn1 fn2 fn3 F1 fi1 fi2 fi3 Lsz1 Lsz2 Lsz3
+
+% Generate Running Order of Annotations 
+ClassDataDS1 =round(ClassDataDS1); %rater 1
+ClassDataDS2 =round(ClassDataDS2); %rater 2
+ClassDataDS3 =round(ClassDataDS3); %rater 3
+
+%%remove zero start index from all class files
+if ClassDataDS1(1,1) ==0   %rater 1
+   ClassDataDS1(1,1)=1;
+end 
+if ClassDataDS1(2,1) ==0   
+   ClassDataDS1(2,1)=1;
+end 
+if ClassDataDS2(1,1)==0    %rater 2
+    ClassDataDS2(1,1)=1;
+end 
+if ClassDataDS2(2,1)==0    
+    ClassDataDS2(2,1)=1;
+end 
+if ClassDataDS2(1,1)==0    %rater 3
+    ClassDataDS2(1,1)=1;
+end 
+if ClassDataDS2(2,1)==0    
+    ClassDataDS2(2,1)=1;
+end 
+
+% cut classification files same size
+alldata = [max(ClassDataDS1(:,2)) max(ClassDataDS2(:,2)) max(ClassDataDS3(:,2))];
+maxfinal= max(alldata);   %find where to cut annotation files
+minfinal= min(alldata);
+
+
+% preallocate runorders for 3 category labels
+RunOrderpos =zeros(maxfinal,4); 
+RunOrderact =zeros(maxfinal,4);
+RunOrderfun =zeros(maxfinal,4);
+RunOrdertrans =zeros(maxfinal,4);
+
+
+%%
+%add postures to RunOrderpos
+
+%rater 1
+for i=1:length(ClassDataDS1)
+    if ClassDataDS1(i,3)<6
+    RunOrderpos(ClassDataDS1(i,1): ClassDataDS1(i,2),1)=  ClassDataDS1(i,3);
+    end
+end 
+
+%rater 2
+for i=1:length(ClassDataDS2)
+    if ClassDataDS2(i,3)<6
+    RunOrderpos(ClassDataDS2(i,1): ClassDataDS2(i,2),2)=  ClassDataDS2(i,3);
+    end
+end 
+
+%rater 3
+for i=1:length(ClassDataDS3)
+    if ClassDataDS3(i,3)<6
+    RunOrderpos(ClassDataDS3(i,1): ClassDataDS3(i,2),3)=  ClassDataDS3(i,3);
+    end
+end 
+
+%
+%%add functional to RunOrderfun
+
+%rater 1
+funindex1 =find(ClassDataDS1(:,3)==6 | ClassDataDS1(:,3)==8 ...
+        | ClassDataDS1(:,3)==9 | ClassDataDS1(:,3)==27 | ClassDataDS1(:,3)==22 ...
+        | ClassDataDS1(:,3)==23 | ClassDataDS1(:,3)==26 | ClassDataDS1(:,3)==24);
+funindex1 =[1;funindex1];
+
+for k =1:length(funindex1)-1
+    t=k+1
+    RunOrderfun(ClassDataDS1(funindex1(k)):ClassDataDS1(funindex1(t)),1)= ClassDataDS1(funindex1(t),3);
+end
+
+%rater 2
+funindex2 =find(ClassDataDS2(:,3)==6 | ClassDataDS2(:,3)==8 ...
+        | ClassDataDS2(:,3)==9 | ClassDataDS2(:,3)==27 | ClassDataDS2(:,3)==22 ...
+        | ClassDataDS2(:,3)==23 | ClassDataDS2(:,3)==26 | ClassDataDS2(:,3)==24)
+funindex2 =[1;funindex2]
+    
+for k =1:length(funindex2)-1
+    t=k+1
+    RunOrderfun(ClassDataDS2(funindex2(k)):ClassDataDS2(funindex2(t)),2)= ClassDataDS2(funindex2(t),3);
+end
+
+%rater 3
+funindex3 =find(ClassDataDS3(:,3)==6 | ClassDataDS3(:,3)==8 ...
+        | ClassDataDS3(:,3)==9 | ClassDataDS3(:,3)==27 | ClassDataDS3(:,3)==22 ...
+        | ClassDataDS3(:,3)==23 | ClassDataDS3(:,3)==26 | ClassDataDS3(:,3)==24)
+funindex3 =[1;funindex3]
+    
+for k =1:length(funindex3)-1
+    t=k+1
+    RunOrderfun(ClassDataDS3(funindex3(k)):ClassDataDS3(funindex3(t)),2)= ClassDataDS3(funindex3(t),3);
+end
+
+%
+% add activities to RunOrderact
+%rater 1
+for i=1:length(ClassDataDS1)
+    if ClassDataDS1(i,3)>9 && ClassDataDS1(i,3)<18
+    RunOrderact(ClassDataDS1(i,1): ClassDataDS1(i,2),1)=  ClassDataDS1(i,3);
+    end
+end 
+
+%rater 2
+for i=1:length(ClassDataDS2)
+    if ClassDataDS2(i,3)>9 && ClassDataDS2(i,3)<18
+    RunOrderact(ClassDataDS2(i,1): ClassDataDS2(i,2),2)=  ClassDataDS2(i,3);
+    end
+end
+
+%rater 3
+for i=1:length(ClassDataDS3)
+    if ClassDataDS3(i,3)>9 && ClassDataDS3(i,3)<18
+    RunOrderact(ClassDataDS3(i,1): ClassDataDS3(i,2),3)=  ClassDataDS3(i,3);
+    end
+end
+%
+%add transition to RunOrdertrans
+
+%Rater1
+for i=1:length(ClassDataDS1)
+    if ClassDataDS1(i,3) ==28
+    RunOrdertrans(ClassDataDS1(i,1): ClassDataDS1(i,2),1)=  ClassDataDS1(i,3);
+    end
+end 
+
+%Rater2
+for i=1:length(ClassDataDS2)
+    if ClassDataDS2(i,3)==28
+    RunOrdertrans(ClassDataDS2(i,1): ClassDataDS2(i,2),2)=  ClassDataDS2(i,3);
+    end
+end
+
+%Rater3
+for i=1:length(ClassDataDS3)
+    if ClassDataDS3(i,3)==28
+    RunOrdertrans(ClassDataDS3(i,1): ClassDataDS3(i,2),3)=  ClassDataDS3(i,3);
+    end
+end
+
+
+%%
+% cut to min length labelled by both raters
+
+RunOrderpos =RunOrderpos(1:minfinal,:);
+RunOrderfun =RunOrderfun(1:minfinal,:);
+RunOrderact =RunOrderact(1:minfinal,:);
+RunOrdertrans =RunOrdertrans(1:minfinal,:);
+
+%%
+%prep data for visualisation converting to different numbers to fit correctly
+
+RunOrdertransplot =RunOrdertrans;
+RunOrdertransplot(RunOrdertransplot ==28)=6;
+
+RunOrderactplot =RunOrderact;
+RunOrderactplot(RunOrderactplot ==10)=1;
+RunOrderactplot(RunOrderactplot ==11)=2;
+RunOrderactplot(RunOrderactplot ==12)=3;
+RunOrderactplot(RunOrderactplot ==13)=4;
+RunOrderactplot(RunOrderactplot ==14)=5;
+RunOrderactplot(RunOrderactplot ==15)=6;
+RunOrderactplot(RunOrderactplot ==16)=7;
+RunOrderactplot(RunOrderactplot ==17)=8;
+
+RunOrderfunplot =RunOrderfun;
+RunOrderfunplot(RunOrderfunplot==9)=1;
+RunOrderfunplot(RunOrderfunplot==27)=2;
+RunOrderfunplot(RunOrderfunplot==22)=3;
+RunOrderfunplot(RunOrderfunplot==23)=4;
+RunOrderfunplot(RunOrderfunplot==8)=5;
+RunOrderfunplot(RunOrderfunplot==6)=6;
+RunOrderfunplot(RunOrderfunplot==26)=7;
+RunOrderfunplot(RunOrderfunplot==24)=8;
+
+RunOrderposplot =RunOrderpos;
+RunOrderposplot(RunOrderposplot==1)=1;
+RunOrderposplot(RunOrderposplot==2)=2;
+RunOrderposplot(RunOrderposplot==3)=3;
+RunOrderposplot(RunOrderposplot==4)=4;
+RunOrderposplot(RunOrderposplot==5)=5;
+
+
+
+%% Locate disagreement between two raters
+
+% label 1 in column for each datapoint where Rater 1 and Rater 2 disagree
+% for all categories
+
+% RunOrderpos = RunOrderpos(all(RunOrderpos(:,1:2),2),:);
+RunOrderpos(:,4)=RunOrderpos(:,1)~=RunOrderpos(:,2) |  RunOrderpos(:,1)~=RunOrderpos(:,3) | RunOrderpos(:,2)~=RunOrderpos(:,3);
+
+% RunOrderfun = RunOrderfun(all(RunOrderfun(:,1:2),2),:);
+RunOrderfun(:,4)=RunOrderfun(:,1)~=RunOrderfun(:,2) |  RunOrderfun(:,1)~=RunOrderfun(:,3) | RunOrderfun(:,2)~=RunOrderfun(:,3);
+
+% RunOrderact = RunOrderact(all(RunOrderact(:,1:2),2),:);
+RunOrderact(:,4)=RunOrderact(:,1)~=RunOrderact(:,2) |  RunOrderact(:,1)~=RunOrderact(:,3) | RunOrderact(:,2)~=RunOrderact(:,3);
+
+% RunOrdertrans = RunOrdertrans(all(RunOrdertrans(:,1:2),2),:);
+RunOrdertrans(:,4)=RunOrdertrans(:,1)~=RunOrdertrans(:,2) | RunOrdertrans(:,1)~=RunOrdertrans(:,3) | RunOrdertrans(:,2)~=RunOrdertrans(:,3);
+
+% RunOrderfunplot = RunOrderfunplot(all(RunOrderfunplot(:,1:2),2),:);
+RunOrderfunplot(:,4)=RunOrderfunplot(:,1)~=RunOrderfunplot(:,2) | RunOrderfunplot(:,1)~=RunOrderfunplot(:,3) | RunOrderfunplot(:,2)~=RunOrderfunplot(:,3) ;
+
+% RunOrderactplot = RunOrderactplot(all(RunOrderactplot(:,1:2),2),:);
+RunOrderactplot(:,4)=RunOrderactplot(:,1)~=RunOrderactplot(:,2) | RunOrderactplot(:,1)~=RunOrderactplot(:,3) | RunOrderactplot(:,2)~=RunOrderactplot(:,3);
+
+% RunOrdertransplot = RunOrdertransplot(all(RunOrdertransplot(:,1:2),2),:);
+RunOrdertransplot(:,4)=RunOrdertransplot(:,1)~=RunOrdertransplot(:,2) | RunOrdertransplot(:,1)~=RunOrdertransplot(:,3) | RunOrdertransplot(:,2)~=RunOrdertransplot(:,3);
+%% Graphs and Visualisations 
+
+%postures
+figure(1)
+imagesc([RunOrderpos(:,1:3) RunOrderpos(:,4)])
+colorbar('YTick',0:1:5,'TickLabels',{'Lying bed','Sitting bed','Sitting edge','Standing','Walking'})
+title(strcat(name, 'Posture Labels '))
+xlabel('Rater No.')
+ylabel('Packets')
+ax = gca;
+ax.YAxis.Exponent = 0;
+set(gca,'XTick',1:5)
+set(gca,'XTickLabel',{'1' '2' '3' 'Dispute'})
+set(gca,'YTick',0:7000:length(RunOrderpos))
+
+%%
+%functional
+figure(2)
+imagesc([RunOrderfunplot(:,1:3) RunOrderfunplot(:,4)])
+colorbar('Ticks',[1,2,3,4,5,6,7,8],...
+         'TickLabels',{'fun obj use', 'fun obj move', 'fun surround', 'functional self', 'fun no obj', 'non-fun obj', 'non-fun no obj', 'no move'})
+title(strcat(name, 'Functional Labels '))
+xlabel('Rater No.')
+ylabel('Packets')
+ax = gca;
+ax.YAxis.Exponent = 0;
+set(gca,'YTick',1:5)
+set(gca,'XTickLabel',{'1' '2' '3' 'Dispute'})
+set(gca,'YTick',0:7000:length(RunOrderfunplot))
+
+%%
+%activities
+figure(3)
+imagesc([RunOrderactplot(:,1:3) RunOrderactplot(:,4)])
+colorbar('Ticks',[1,2,3,4,5,6,7,8],...
+         'TickLabels',{'Electronic device', 'Eating w cutlery', 'Eating w/o cutlery', 'Drinking', 'Reading', 'Dressing','Writing','Gesticulating'})
+title(strcat(name, 'Activity Labels'))
+xlabel('Rater No.')
+ylabel('Packets')
+ax = gca;
+ax.YAxis.Exponent = 0;
+set(gca,'YTick',1:8)
+set(gca,'XTickLabel',{'1' '2' '3' 'Dispute'})
+set(gca,'YTick',0:7000:length(RunOrderactplot))
+
+%% Inter-rater reliability for Posture 
+%OLD
+%postures
+%5 postures
+% InterRaterX=zeros(5,5);
+% for i=1:5
+%       for j=1:5
+%         
+%          InterRaterX(i,j)=sum(RunOrderpos(:,1)==i & RunOrderpos(:,2)==j);
+%          
+%       end
+% end
+
+%NEW
+InterRaterPos = zeros(length(RunOrderpos),6);
+for i=1:length(RunOrderpos);
+    for k=1:5
+     %rater1
+        if RunOrderpos(i,1) ==k
+           InterRaterPos(i,k)=InterRaterPos(i,k)+1;
+    %rater2      
+        if RunOrderpos(i,2) ==k
+           InterRaterPos(i,k)=InterRaterPos(i,k)+1;
+    %rater3
+        if RunOrderpos(i,3) ==k
+           InterRaterPos(i,k)=InterRaterPos(i,k)+1;
+    end
+end 
+        end
+    end
+end
+
+
+%balance the number of raters for each row by creating category 6: "Not-labeled" (with 3 raters in this case)
+for i=1:length(InterRaterPos);
+InterRaterPos(i,6) = (3 -sum(InterRaterPos(i,:)));
+end
+
+%remove empty columns for preventing NaNs
+InterRaterPos(:,~any(InterRaterPos,1)) = [];
+
+
+%[k1 ci1]=kappaf(InterRaterX,1);%Divide the number of counts by 10 to reflect the fact that measurements
+%are made at Second Scale %(this doesnt change the Kappa but increases the CI range)
+fleiss(InterRaterPos)
+
+
+%%
+% functional
+% 8 functional classes
+% InterRaterX=zeros(8,8);
+% for i=1:8
+%       for j=1:8
+%           for k=1:8
+%          InterRaterX(i,j)=sum(RunOrderfunplot(:,1)==i & RunOrderfunplot(:,2)==j & RunOrderfunplot(:,3)==k);
+%       end
+%       end
+% end 
+
+
+%[k1 ci1]=kappaf(InterRaterX,1);%Divide the number of counts by 10 to reflect the fact that measurements
+%are made at Second Scale %(this doesnt change the Kappa but increases the CI range)
+%[k1 ci1]=kappaf(round(InterRaterX./10),1);
+
+% RunOrderpos =array2table(RunOrderpos);
+% cm =confusionchart(RunOrderfunplot(:,1),RunOrderfunplot(:,2))
+% cm.XLabel = 'Rater 1'
+% cm.YLabel = 'Rater 2'
+% cm.Title = strcat(name, 'Confusion Matrix Functional');
+% cm.RowSummary = 'row-normalized';
+% cm.ColumnSummary = 'column-normalized';
+
+%%
+%activities
+%8 activities classes
+%change zero to 9 to check when one person rated nothing and another rated
+%an activity
+% RunOrderactplot(RunOrderactplot ==0)=9;
+% InterRaterAct=zeros(length(RunOrderact),);
+% for i=1:9
+%       for j=1:9
+%          InterRaterX(i,j)=sum(RunOrderactplot(:,1)==i & RunOrderactplot(:,2)==j);
+%       end
+% end
+
+
+InterRaterAct = zeros(length(RunOrderactplot),9);
+for i=1:length(RunOrderactplot);
+    for k=1:8
+     %rater1
+        if RunOrderactplot(i,1) ==k
+           InterRaterAct(i,k)=InterRaterAct(i,k)+1;
+    %rater2      
+        if RunOrderactplot(i,2) ==k
+           InterRaterAct(i,k)=InterRaterAct(i,k)+1;
+    %rater3
+        if RunOrderactplot(i,3) ==k
+           InterRaterAct(i,k)=InterRaterAct(i,k)+1;
+    end
+end 
+        end
+    end
+end
+
+%Balance number of raters (3 in this case)
+for i=1:length(InterRaterAct);
+InterRaterAct(i,9) = (3 -sum(InterRaterAct(i,:)));
+end
+
+%remove empty columns for preventing NaNs
+InterRaterAct(:,~any(InterRaterAct,1)) = [];
+
+%[k1 ci1]=kappaf(InterRaterX,1);%Divide the number of counts by 10 to reflect the fact that measurements
+%are made at Second Scale %(this doesnt change the Kappa but increases the CI range)
+fleiss(InterRaterAct)
+
+% RunOrderpos =array2table(RunOrderpos);
+% cm =confusionchart(RunOrderactplot(:,1),RunOrderactplot(:,2))
+% cm.XLabel = 'Rater 1'
+% cm.YLabel = 'Rater 2'
+% cm.Title = strcat(name, 'Confusion Matrix Functional');
+% cm.RowSummary = 'row-normalized';
+% cm.ColumnSummary = 'column-normalized';
+
+
+
+
+
+%%
+%plot kappa results 
+
+A =readtable('combinedpos.xlsx');
+X = categorical({'LNPT016R2','LNPT030R1','LNPT043R1', 'Global'});
+values =table2array(A(1,2:5));
+bar(X,values);
+title('Cohens Kappa')
+xlabel('Participant')
+ylabel('Inter-rater Reliability')
+
+errhigh =table2array(A(3,2:5));
+errlow = table2array(A(2,2:5));
+diffhigh =errhigh-table2array(A(1,2:5));
+difflow =table2array(A(1,2:5))-errlow;
+
+hold on
+er = errorbar(X,values,difflow,diffhigh);    
+er.Color = [0 0 0];                            
+er.LineStyle = 'none';  
+
+clear errhigh errlow Global er E D diffhigh difflow 
+%%
+
+%change transition to value 6 for plotting
+classLabels = {'lying bed', 'sitting bed', 'sitting edge', 'standing', 'walking','transition',''}
+figure (k)
+scatter(1:length(RunOrderpos),RunOrderpos(:,1),'.','LineWidth',1.5)
+hold on
+scatter(1:length(RunOrderpos),(RunOrderpos(:,2))+0.09,'.', 'LineWidth',1.5)
+hold on 
+scatter(1:length(RunOrderpos),(RunOrderpos(:,3))+0.18,'.','LineWidth',1.5)
+hold on
+scatter(1:length(RunOrdertransplot),RunOrdertransplot(:,1),'.','LineWidth',1.5)
+hold on 
+scatter(1:length(RunOrdertransplot),(RunOrdertransplot(:,2))+0.09,'.', 'LineWidth',1.5)
+hold on
+scatter(1:length(RunOrdertransplot),(RunOrdertransplot(:,3))+0.18,'.', 'LineWidth',1.5)
+ylim([0 7])
+
+title ('Jitter Postures')
+%yticklabels({'','lie bed','sit bed','sit edge/chair','stand','walk'})
+legend('rater1','rater2','rater3')
+set(gca,'XTick',0:7000:length(RunOrderpos))
+set(gca,'YTick',1:7)
+set(gca,'YTickLabel',{'lie bed' 'sit bed' 'sit edge/chair' 'stand' 'walk','transition',''})
+xlabel('Packets')
+ylabel('Postures')
+ax = gca;
+ax.YAxis.Exponent = 0;
+
+%%
+classLabels = {'fun obj use', 'fun obj move', 'fun surround', 'functional self', 'fun no obj', 'non-fun obj', 'non-fun no obj', 'no move'}
+scatter(1:length(RunOrderfunplot),RunOrderfunplot(:,1),'.','LineWidth',1.5)
+hold on
+scatter(1:length(RunOrderfunplot),(RunOrderfunplot(:,2))+0.09,'.', 'LineWidth',1.5)
+scatter(1:length(RunOrderfunplot),(RunOrderfunplot(:,3))+0.18,'.', 'LineWidth',1.5)
+title ('Jitter Functional')
+legend('rater1','rater2','rater3')
+ylim([0 8])
+set(gca,'XTick',0:7000:length(RunOrderfunplot))
+set(gca,'YTick',1:8)
+set(gca,'YTickLabel',{'fun obj use', 'fun obj move', 'fun surround', 'functional self', 'fun no obj', 'non-fun obj', 'non-fun no obj', 'no move'})
+xlabel('Packets')
+ylabel('Functional Activities')
+ax = gca;
+ax.XAxis.Exponent = 0;
+
+%%
+classLabels = {'','Electronic device', 'Eating w cutlery', 'Eating w/0 cutlery', 'Drinking', 'Reading', 'Dressing','Writing','Gesticulating'}
+scatter(1:length(RunOrderactplot),RunOrderactplot(:,1),'.','LineWidth',1.5)
+hold on
+scatter(1:length(RunOrderactplot),(RunOrderactplot(:,2))+0.09,'.', 'LineWidth',1.5)
+scatter(1:length(RunOrderactplot),(RunOrderactplot(:,3))+0.18,'.', 'LineWidth',1.5)
+title ('Jitter Activities')
+%yticklabels({'','lie bed','sit bed','sit edge/chair','stand','walk'})
+legend('rater1','rater2','rater3')
+ylim([0 8])
+set(gca,'XTick',0:3000:length(RunOrderactplot))
+set(gca,'YTick',0:8)
+
+set(gca,'YTickLabel',{'','Electronic device', 'Eating w cutlery', 'Eating w/0 cutlery', 'Drinking', 'Reading', 'Dressing','Writing','Gesticulating'})
+xlabel('Packets')
+ylabel('Daily Activities')
+ax = gca;
+ax.YAxis.Exponent = 0;
+ax.XAxis.Exponent = 0;
+
+%%
