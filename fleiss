@@ -13,7 +13,7 @@ function fleiss(varargin)
 % ratings are. The scoring range is between 0 and 1. 
 %
 % Syntax: 	fleiss(X,alpha)
-%      
+%       
 %     Inputs:
 %           X - square data matrix
 %           ALPHA - significance level (default = 0.05)
