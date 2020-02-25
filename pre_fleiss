@@ -120,7 +120,7 @@ for i=1:length(ClassDataDS2)
     RunOrderpos(ClassDataDS2(i,1): ClassDataDS2(i,2),2)=  ClassDataDS2(i,3);
     end
 end 
-
+ 
 %rater 3
 for i=1:length(ClassDataDS3)
     if ClassDataDS3(i,3)<6
